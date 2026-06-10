@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BookStoreServer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">bookstore-backend</a> &gt; <a href="index.source.html" class="el_package">backend</a> &gt; <span class="el_source">BookStoreServer.java</span></div><h1>BookStoreServer.java</h1><pre class="source lang-java linenums">package backend;
+
+import com.sun.net.httpserver.HttpServer;
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpExchange;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.nio.file.Files;             
+import java.nio.file.Paths;
+
+<span class="nc" id="L13">public class BookStoreServer{</span>
+
+    public static void main(String[] args) throws IOException{
+<span class="fc" id="L16">        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);</span>
+<span class="fc" id="L17">        server.createContext(&quot;/api/calculate&quot;, new CalculateHandler());</span>
+<span class="fc" id="L18">        server.setExecutor(null);</span>
+<span class="fc" id="L19">        server.start();</span>
+<span class="fc" id="L20">    }</span>
+
+<span class="fc" id="L22">    static class CalculateHandler implements HttpHandler{</span>
+        @Override
+        public void handle(HttpExchange exchange) throws IOException{
+<span class="pc bpc" id="L25" title="1 of 2 branches missed.">            if (&quot;POST&quot;.equals(exchange.getRequestMethod())) {</span>
+<span class="fc" id="L26">                InputStream is = exchange.getRequestBody();</span>
+<span class="fc" id="L27">                String body = new String(is.readAllBytes());</span>
+
+<span class="fc" id="L29">                String productId = extractJsonString(body, &quot;product_id&quot;);</span>
+<span class="fc" id="L30">                int quantity = extractJsonInt(body, &quot;quantity&quot;);</span>
+
+<span class="fc" id="L32">                double basePrice = getBasePrice(productId);</span>
+
+<span class="fc" id="L34">                double total = calculateTotal(quantity, basePrice);</span>
+
+<span class="fc" id="L36">                String response = &quot;{\&quot;total\&quot;: &quot; + total + &quot;}&quot;;</span>
+<span class="fc" id="L37">                exchange.getResponseHeaders().set(&quot;Content-Type&quot;, &quot;application/json&quot;);</span>
+<span class="fc" id="L38">                exchange.sendResponseHeaders(200, response.length());</span>
+
+<span class="fc" id="L40">                OutputStream os = exchange.getResponseBody();</span>
+<span class="fc" id="L41">                os.write(response.getBytes());</span>
+<span class="fc" id="L42">                os.close();</span>
+<span class="fc" id="L43">            } else {</span>
+<span class="nc" id="L44">                exchange.sendResponseHeaders(405, -1);</span>
+            }
+<span class="fc" id="L46">        }</span>
+    }
+
+    private static String extractJsonString(String json, String key){
+<span class="fc" id="L50">        String search = &quot;\&quot;&quot; + key + &quot;\&quot;:\&quot;&quot;;</span>
+<span class="fc" id="L51">        int start = json.indexOf(search);</span>
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">        if (start != -1) {</span>
+<span class="fc" id="L53">            start += search.length();</span>
+<span class="fc" id="L54">            int end = json.indexOf(&quot;\&quot;&quot;, start);</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            if (end &gt; -1) {</span>
+<span class="fc" id="L56">                return json.substring(start, end);</span>
+            }
+        }
+<span class="nc" id="L59">        return &quot;&quot;;</span>
+    }
+
+    private static int extractJsonInt(String json, String key){
+<span class="fc" id="L63">        String search = &quot;\&quot;&quot; + key + &quot;\&quot;:&quot;;</span>
+<span class="fc" id="L64">        int start = json.indexOf(search);</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">        if (start != -1) {</span>
+<span class="fc" id="L66">            start += search.length();</span>
+<span class="fc" id="L67">            int end = json.indexOf(&quot;,&quot;, start);</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">            if (end == -1) {</span>
+<span class="fc" id="L69">                end = json.indexOf(&quot;}&quot;, start);</span>
+            }
+<span class="pc bpc" id="L71" title="1 of 2 branches missed.">            if (end &gt; -1) {</span>
+<span class="fc" id="L72">                String val = json.substring(start, end).trim();</span>
+<span class="fc" id="L73">                return Integer.parseInt(val);</span>
+            }
+        }
+<span class="nc" id="L76">        return 0;</span>
+    }
+
+    private static double getBasePrice(String productId){
+        try {
+<span class="fc" id="L81">            String json = new String(Files.readAllBytes(Paths.get(&quot;../data/products.json&quot;)));</span>
+<span class="fc" id="L82">            String searchId = &quot;\&quot;id\&quot;:\&quot;&quot; + productId + &quot;\&quot;&quot;;</span>
+<span class="fc" id="L83">            String searchIdSpaced = &quot;\&quot;id\&quot;: \&quot;&quot; + productId + &quot;\&quot;&quot;;</span>
+
+<span class="fc" id="L85">            int idIdx = json.indexOf(searchId);</span>
+<span class="pc bpc" id="L86" title="1 of 2 branches missed.">            if (idIdx == -1) {</span>
+<span class="fc" id="L87">                idIdx = json.indexOf(searchIdSpaced);</span>
+            }
+
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">            if (idIdx != -1) {</span>
+<span class="fc" id="L91">                int priceStart = json.indexOf(&quot;\&quot;price\&quot;:&quot;, idIdx) + 8;</span>
+<span class="fc" id="L92">                int priceEnd = json.indexOf(&quot;,&quot;, priceStart);</span>
+<span class="fc" id="L93">                return Double.parseDouble(json.substring(priceStart, priceEnd).trim());</span>
+            }
+<span class="nc" id="L95">        } catch (Exception e) {</span>
+<span class="nc" id="L96">        }</span>
+<span class="nc" id="L97">        return 0;</span>
+    }
+
+    public static double calculateTotal(int quantity, double basePrice){
+<span class="fc" id="L101">        double discount = 0.0;</span>
+<span class="fc" id="L102">        double totalPrice = quantity * basePrice;</span>
+
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">        if (quantity &gt; 0) {</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">            if (quantity &gt;= 100) {</span>
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">                if (basePrice &gt; 100000) {</span>
+<span class="fc" id="L107">                    discount = 0.30;</span>
+                } else {
+<span class="nc" id="L109">                    discount = 0.25;</span>
+                }
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">            } else if (quantity &gt;= 50) {</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                if (basePrice &gt; 100000) {</span>
+<span class="nc" id="L113">                    discount = 0.20;</span>
+                } else {
+<span class="nc" id="L115">                    discount = 0.15;</span>
+                }
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">            } else if (quantity &gt;= 10) {</span>
+<span class="nc" id="L118">                discount = 0.10;</span>
+            } else {
+<span class="fc" id="L120">                discount = 0.0;</span>
+            }
+        } else {
+<span class="nc" id="L123">            return 0.0;</span>
+        }
+
+<span class="fc" id="L126">        return totalPrice - (totalPrice * discount);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
