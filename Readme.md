@@ -1,5 +1,5 @@
 Unit & Integration Testing : 
-    cp backend
+    cd backend
     java -cp out backend.BookStoreTestRunner
 
 Run server : 
