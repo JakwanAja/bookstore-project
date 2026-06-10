@@ -74,14 +74,45 @@
                             <goal>report</goal>
                         </goals>
                     </execution>
+                    <!-- Enforce minimum coverage -->
+                    <execution>
+                        <id>check</id>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.75</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.75</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 
-            <!-- JUnit 5 -->
+            <!-- JUnit 5 Surefire - exclude SystemTest (butuh browser) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.1.2</version>
+                <configuration>
+                    <excludes>
+                        <exclude>**/BookStoreSystemTest.java</exclude>
+                    </excludes>
+                </configuration>
             </plugin>
 
             <!-- Exec Plugin untuk CI/CD -->
