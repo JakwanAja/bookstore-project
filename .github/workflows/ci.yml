@@ -23,7 +23,7 @@ jobs:
           java-version: '11'
           distribution: 'temurin'
 
-      # ── 3. Setup PHP 8.x ─────────────────────────────────────────
+      # ── 3. Setup PHP 8.2 ─────────────────────────────────────────
       - name: Setup PHP 8.2
         uses: shivammathur/setup-php@v2
         with:
@@ -31,7 +31,7 @@ jobs:
           extensions: curl, json
           coverage: none
 
-      # ── 4. Setup Chrome & ChromeDriver (untuk Selenium) ───────────
+      # ── 4. Setup Chrome & ChromeDriver ────────────────────────────
       - name: Setup Google Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -43,9 +43,8 @@ jobs:
           java -version
           php --version
           mvn -version
-          google-chrome --version || chromium --version
 
-      # ── 6. Build Maven (compile + test classes) ───────────────────
+      # ── 6. Build Maven (compile) ──────────────────────────────────
       - name: Build with Maven (Compile)
         working-directory: backend
         run: mvn compile test-compile -B
@@ -54,18 +53,15 @@ jobs:
       - name: Start Java Backend Server (port 8080)
         working-directory: backend
         run: |
-          mvn exec:java \
-            -Dexec.mainClass="backend.BookStoreServer" \
-            -Dexec.classpathScope=runtime \
-            -B &
+          mvn exec:java -Dexec.mainClass="backend.BookStoreServer" -Dexec.classpathScope=runtime -B &
           echo "Menunggu Java backend siap..."
-          sleep 5
+          sleep 8
           curl --retry 10 --retry-delay 2 --retry-connrefused \
                http://localhost:8080/api/calculate \
                -X POST \
                -H "Content-Type: application/json" \
                -d '{"product_id":"B001","quantity":1}' \
-               -o /dev/null -s -w "Java backend status: %{http_code}\n"
+               -o /dev/null -s -w "Java backend HTTP status: %{http_code}\n"
 
       # ── 8. Jalankan PHP Web Server di background (port 8000) ──────
       - name: Start PHP Web Server (port 8000)
@@ -76,78 +72,24 @@ jobs:
           sleep 3
           curl --retry 5 --retry-delay 1 --retry-connrefused \
                http://localhost:8000 \
-               -o /dev/null -s -w "PHP server status: %{http_code}\n"
+               -o /dev/null -s -w "PHP server HTTP status: %{http_code}\n"
 
-      # ── 9. Jalankan SEMUA tes Maven (Unit + Integration + System) ─
-      #       JaCoCo otomatis aktif lewat pom.xml (prepare-agent)
-      - name: Run All Tests (JUnit: Unit + Integration + System)
+      # ── 9. Jalankan semua test JUnit (Unit + Integration + System) ─
+      - name: Run All Tests via Maven (JUnit + JaCoCo)
         working-directory: backend
         run: mvn test -B
 
       # ── 10. Jalankan PHP Unit Test ─────────────────────────────────
-      - name: Run PHP Unit Tests (BookStoreCurlTest.php)
+      - name: Run PHP Unit Tests
         working-directory: frontend
         run: php BookStoreCurlTest.php
 
-      # ── 11. Cek JaCoCo Coverage ≥ 75% ─────────────────────────────
-      - name: Check JaCoCo Code Coverage (min 75%)
+      # ── 11. Cek JaCoCo Coverage >= 75% ────────────────────────────
+      - name: Check Code Coverage (min 75%)
         working-directory: backend
-        run: |
-          echo "=== Membaca laporan JaCoCo ==="
-          JACOCO_CSV="target/site/jacoco/jacoco.csv"
+        run: python3 scripts/check_coverage.py target/site/jacoco/jacoco.csv 75
 
-          if [ ! -f "$JACOCO_CSV" ]; then
-            echo "❌ File jacoco.csv tidak ditemukan! Pastikan mvn test sudah berjalan."
-            exit 1
-          fi
-
-          # Hitung Statement Coverage dari jacoco.csv
-          # Format: GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,...
-          python3 - <<'PYEOF'
-          import csv, sys
-
-          csv_path = "target/site/jacoco/jacoco.csv"
-          total_missed   = 0
-          total_covered  = 0
-          branch_missed  = 0
-          branch_covered = 0
-
-          with open(csv_path) as f:
-              reader = csv.DictReader(f)
-              for row in reader:
-                  total_missed   += int(row.get("INSTRUCTION_MISSED", 0))
-                  total_covered  += int(row.get("INSTRUCTION_COVERED", 0))
-                  branch_missed  += int(row.get("BRANCH_MISSED", 0))
-                  branch_covered += int(row.get("BRANCH_COVERED", 0))
-
-          total_instr = total_missed + total_covered
-          total_branch = branch_missed + branch_covered
-
-          stmt_pct   = (total_covered  / total_instr  * 100) if total_instr  > 0 else 0
-          branch_pct = (branch_covered / total_branch * 100) if total_branch > 0 else 0
-
-          print(f"📊 Statement Coverage : {stmt_pct:.1f}% ({total_covered}/{total_instr})")
-          print(f"📊 Branch Coverage    : {branch_pct:.1f}% ({branch_covered}/{total_branch})")
-
-          THRESHOLD = 75.0
-          failed = False
-
-          if stmt_pct < THRESHOLD:
-              print(f"❌ Statement Coverage {stmt_pct:.1f}% di bawah threshold {THRESHOLD}%!")
-              failed = True
-          else:
-              print(f"✅ Statement Coverage {stmt_pct:.1f}% LULUS (≥{THRESHOLD}%)")
-
-          if branch_pct < THRESHOLD:
-              print(f"❌ Branch Coverage {branch_pct:.1f}% di bawah threshold {THRESHOLD}%!")
-              failed = True
-          else:
-              print(f"✅ Branch Coverage {branch_pct:.1f}% LULUS (≥{THRESHOLD}%)")
-
-          sys.exit(1 if failed else 0)
-          PYEOF
-
-      # ── 12. Upload Laporan JaCoCo sebagai Artifact ────────────────
+      # ── 12. Upload Laporan JaCoCo ──────────────────────────────────
       - name: Upload JaCoCo Coverage Report
         uses: actions/upload-artifact@v4
         if: always()
@@ -156,7 +98,7 @@ jobs:
           path: backend/target/site/jacoco/
           retention-days: 30
 
-      # ── 13. Upload Surefire Test Reports sebagai Artifact ─────────
+      # ── 13. Upload Surefire Test Reports ──────────────────────────
       - name: Upload Surefire Test Reports
         uses: actions/upload-artifact@v4
         if: always()
