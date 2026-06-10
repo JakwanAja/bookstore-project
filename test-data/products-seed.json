@@ -1,0 +1,20 @@
+[
+    {
+      "id": "B001",
+      "title": "Buku Rekayasa Perangkat Lunak",
+      "price": 150000,
+      "stock": 100
+    },
+    {
+      "id": "B002",
+      "title": "Pengujian Sistem Informasi",
+      "price": 120000,
+      "stock": 50
+    },
+    {
+      "id": "B003",
+      "title": "Dasar Algoritma",
+      "price": 85000,
+      "stock": 25
+    }
+  ]
